@@ -1,29 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- Constants ---
+    const OPS_345 = [[3,3],[3,4],[3,5],[4,4],[4,5],[5,5],[3,6]];
+
     // --- State ---
-    let currentMode  = null;
-    let playerCount  = 1;
-    let selectedTime = 60;
-    let timeLeft     = 60;
+    let currentMode   = null;
+    let playerCount   = 1;
+    let selectedTime  = 60;
+    let timeLeft      = 60;
     let timerInterval = null;
+    let isReviewMode  = false;
+
+    // Question pools: 0=single player, 1=player1, 2=player2
+    const pools = {
+        0: { list: [], idx: 0 },
+        1: { list: [], idx: 0 },
+        2: { list: [], idx: 0 }
+    };
+
+    // Wrong answers (Map: "min,max" -> [min,max])
+    const wrongMap = new Map();
 
     // Single player
     let score         = 0;
     let correctAnswer = null;
+    let currentPair   = [0, 0];
     let answerValue   = '';
     let waiting       = false;
 
     // Two player
     const p = {
-        1: { score: 0, answer: '', correct: null, waiting: false },
-        2: { score: 0, answer: '', correct: null, waiting: false }
+        1: { score: 0, answer: '', correct: null, pair: [0,0], waiting: false },
+        2: { score: 0, answer: '', correct: null, pair: [0,0], waiting: false }
     };
-
-    const specificOperations = [
-        [3, 3], [3, 4], [3, 5],
-        [4, 4], [5, 4], [5, 5],
-        [6, 3]
-    ];
 
     // --- DOM ---
     const app        = document.getElementById('app');
@@ -35,12 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn1p  = document.getElementById('btn-1p');
     const btn2p  = document.getElementById('btn-2p');
 
-    const scoreEl    = document.getElementById('score');
-    const questionEl = document.getElementById('question');
-    const answerEl   = document.getElementById('answer-display');
-    const feedbackEl = document.getElementById('feedback-inline');
-    const timerEl    = document.getElementById('timer-display');
-    const timerEl2p  = document.getElementById('timer-display-2p');
+    const scoreEl       = document.getElementById('score');
+    const questionEl    = document.getElementById('question');
+    const answerEl      = document.getElementById('answer-display');
+    const feedbackEl    = document.getElementById('feedback-inline');
+    const timerEl       = document.getElementById('timer-display');
+    const timerEl2p     = document.getElementById('timer-display-2p');
+    const gameOverTitle = document.getElementById('game-over-title');
+    const reviewBtn     = document.getElementById('review-btn');
 
     const el = {
         1: {
@@ -57,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Player count toggle ---
+    // --- Player toggle ---
     btn1p.addEventListener('click', () => {
         playerCount = 1;
         btn1p.classList.add('selected');
@@ -78,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Difficulty buttons ---
+    // --- Menu / game over buttons ---
     document.querySelector('.mode-012').addEventListener('click', () => startGame('012'));
     document.querySelector('.mode-345').addEventListener('click', () => startGame('345'));
     document.querySelector('.mode-all').addEventListener('click', () => startGame('all'));
@@ -86,26 +97,78 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('back-btn-2p').addEventListener('click', showMenu);
     document.getElementById('play-again-btn').addEventListener('click', () => {
         gameOver.classList.add('hidden');
+        isReviewMode = false;
         startGame(currentMode);
     });
     document.getElementById('go-menu-btn').addEventListener('click', () => {
         gameOver.classList.add('hidden');
+        isReviewMode = false;
         showMenu();
     });
+    reviewBtn.addEventListener('click', () => {
+        gameOver.classList.add('hidden');
+        startReview();
+    });
 
-    // --- Single player numpad ---
+    // --- Numpad listeners ---
     document.querySelectorAll('#game-screen .numpad-btn').forEach(btn => {
         btn.addEventListener('click', () => handleSingle(btn.dataset.val));
     });
-
-    // --- Two player numpad ---
     document.querySelectorAll('#two-player-screen .numpad-btn').forEach(btn => {
         btn.addEventListener('click', () => handleTwo(+btn.dataset.player, btn.dataset.val));
     });
 
-    // --- Game start ---
+    // ─── Pool management ───────────────────────────────────────────────────────
+
+    function buildPool(mode) {
+        const seen  = new Set();
+        const pairs = [];
+        const add   = (a, b) => {
+            const key = `${Math.min(a,b)},${Math.max(a,b)}`;
+            if (!seen.has(key)) { seen.add(key); pairs.push([Math.min(a,b), Math.max(a,b)]); }
+        };
+        if (mode === '012' || mode === 'all') {
+            for (let a = 0; a <= 2; a++)
+                for (let b = 0; b <= 10; b++) add(a, b);
+        }
+        if (mode === '345' || mode === 'all') {
+            OPS_345.forEach(([a,b]) => add(a, b));
+        }
+        return shuffle(pairs);
+    }
+
+    function initPools(mode) {
+        [0, 1, 2].forEach(k => { pools[k].list = buildPool(mode); pools[k].idx = 0; });
+    }
+
+    function nextFromPool(key) {
+        const pool = pools[key];
+        if (pool.idx >= pool.list.length) { shuffle(pool.list); pool.idx = 0; }
+        const [a, b] = pool.list[pool.idx++];
+        return Math.random() > 0.5 ? [a, b] : [b, a];
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // ─── Wrong answer tracking ─────────────────────────────────────────────────
+
+    function trackWrong(n1, n2) {
+        const key = `${Math.min(n1,n2)},${Math.max(n1,n2)}`;
+        if (!wrongMap.has(key)) wrongMap.set(key, [Math.min(n1,n2), Math.max(n1,n2)]);
+    }
+
+    // ─── Game flow ──────────────────────────────────────────────────────────────
+
     function startGame(mode) {
         currentMode = mode;
+        wrongMap.clear();
+        initPools(mode);
         menuScreen.classList.remove('active');
 
         if (playerCount === 2) {
@@ -126,18 +189,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function startReview() {
+        const reviewPairs = shuffle(Array.from(wrongMap.values()));
+        wrongMap.clear();
+
+        pools[0].list = reviewPairs;
+        pools[0].idx  = 0;
+
+        isReviewMode = true;
+        score        = 0;
+        scoreEl.textContent = '0';
+
+        twoScreen.classList.remove('active');
+        app.classList.remove('two-player-mode');
+        gameScreen.classList.add('active');
+
+        newQuestion(0);
+        startTimer(timerEl);
+    }
+
     function showMenu() {
         stopTimer();
         gameScreen.classList.remove('active');
         twoScreen.classList.remove('active');
         menuScreen.classList.add('active');
         app.classList.remove('two-player-mode');
-        currentMode = null;
-        waiting = false;
+        currentMode  = null;
+        waiting      = false;
+        isReviewMode = false;
         feedbackEl.className = 'feedback-inline hidden';
     }
 
-    // --- Timer ---
+    // ─── Timer ─────────────────────────────────────────────────────────────────
+
     function startTimer(display) {
         stopTimer();
         timeLeft = selectedTime;
@@ -145,18 +229,12 @@ document.addEventListener('DOMContentLoaded', () => {
         timerInterval = setInterval(() => {
             timeLeft--;
             updateTimerDisplay(display);
-            if (timeLeft <= 0) {
-                stopTimer();
-                showGameOver();
-            }
+            if (timeLeft <= 0) { stopTimer(); showGameOver(); }
         }, 1000);
     }
 
     function stopTimer() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
         timerEl.classList.remove('warning');
         timerEl2p.classList.remove('warning');
     }
@@ -165,41 +243,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = Math.floor(timeLeft / 60);
         const s = timeLeft % 60;
         display.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-        if (timeLeft <= 10) {
-            display.classList.add('warning');
-        } else {
-            display.classList.remove('warning');
-        }
+        display.classList.toggle('warning', timeLeft <= 10);
     }
 
-    // --- Game Over ---
+    // ─── Game over ─────────────────────────────────────────────────────────────
+
     function showGameOver() {
         const scoresDiv = document.getElementById('game-over-scores');
 
-        if (playerCount === 2) {
-            const s1 = p[1].score;
-            const s2 = p[2].score;
-            let winnerHTML = '';
-            if (s1 > s2) {
-                winnerHTML = `<div class="winner">🏆 Νικητής: Παίκτης 1!</div>`;
-            } else if (s2 > s1) {
-                winnerHTML = `<div class="winner">🏆 Νικητής: Παίκτης 2!</div>`;
-            } else {
-                winnerHTML = `<div class="winner">🤝 Ισοπαλία!</div>`;
-            }
+        gameOverTitle.textContent = isReviewMode
+            ? '📝 Τέλος Επανάληψης!'
+            : '⏰ Τελείωσε ο χρόνος!';
+
+        if (playerCount === 2 && !isReviewMode) {
+            const s1 = p[1].score, s2 = p[2].score;
+            const winner = s1 > s2
+                ? `<div class="winner">🏆 Νικητής: Παίκτης 1!</div>`
+                : s2 > s1
+                    ? `<div class="winner">🏆 Νικητής: Παίκτης 2!</div>`
+                    : `<div class="winner">🤝 Ισοπαλία!</div>`;
             scoresDiv.innerHTML = `
-                ${winnerHTML}
+                ${winner}
                 <div>🔵 Παίκτης 1: <strong>${s1}</strong> πόντοι</div>
-                <div>🔴 Παίκτης 2: <strong>${s2}</strong> πόντοι</div>
-            `;
+                <div>🔴 Παίκτης 2: <strong>${s2}</strong> πόντοι</div>`;
         } else {
             scoresDiv.innerHTML = `<div>Σκορ: <strong>${score}</strong> πόντοι ⭐</div>`;
+        }
+
+        if (wrongMap.size > 0) {
+            reviewBtn.style.display = '';
+            reviewBtn.textContent   = `📝 Επανάληψη Λαθών (${wrongMap.size})`;
+        } else {
+            reviewBtn.style.display = 'none';
         }
 
         gameOver.classList.remove('hidden');
     }
 
-    // --- Single player logic ---
+    // ─── Single player logic ───────────────────────────────────────────────────
+
     function handleSingle(val) {
         if (waiting) return;
         if (val === 'del') {
@@ -216,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 waiting = true;
                 setTimeout(() => newQuestion(0), 1200);
             } else {
+                trackWrong(...currentPair);
                 setFeedback(feedbackEl, false);
                 answerValue = '';
             }
@@ -226,7 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
         answerEl.textContent = answerValue || ';';
     }
 
-    // --- Two player logic ---
+    // ─── Two player logic ──────────────────────────────────────────────────────
+
     function handleTwo(player, val) {
         const state = p[player];
         const dom   = el[player];
@@ -243,6 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.waiting = true;
                 setTimeout(() => newQuestion(player), 1200);
             } else {
+                trackWrong(...state.pair);
                 setFeedback(dom.feedback, false);
                 state.answer = '';
                 dom.answer.textContent = ';';
@@ -255,47 +340,32 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.answer.textContent = state.answer || ';';
     }
 
-    // --- Generate question ---
+    // ─── Generate question ─────────────────────────────────────────────────────
+
     function newQuestion(player) {
-        const [n1, n2] = getNumbers();
+        const [n1, n2] = nextFromPool(player);
         const result   = n1 * n2;
 
         if (player === 0) {
             waiting       = false;
             answerValue   = '';
             correctAnswer = result;
-            answerEl.textContent        = ';';
-            feedbackEl.className        = 'feedback-inline hidden';
-            questionEl.textContent      = `${n1} × ${n2}`;
+            currentPair   = [n1, n2];
+            answerEl.textContent   = ';';
+            feedbackEl.className   = 'feedback-inline hidden';
+            questionEl.textContent = `${n1} × ${n2}`;
         } else {
             p[player].waiting = false;
             p[player].answer  = '';
             p[player].correct = result;
+            p[player].pair    = [n1, n2];
             el[player].answer.textContent   = ';';
             el[player].feedback.className   = 'feedback-inline hidden';
             el[player].question.textContent = `${n1} × ${n2}`;
         }
     }
 
-    // --- Helpers ---
-    function getNumbers() {
-        let n1, n2;
-        if (currentMode === '012') {
-            n1 = Math.floor(Math.random() * 3);
-            n2 = Math.floor(Math.random() * 11);
-        } else if (currentMode === '345') {
-            [n1, n2] = specificOperations[Math.floor(Math.random() * specificOperations.length)];
-        } else {
-            if (Math.random() > 0.5) {
-                n1 = Math.floor(Math.random() * 3);
-                n2 = Math.floor(Math.random() * 11);
-            } else {
-                [n1, n2] = specificOperations[Math.floor(Math.random() * specificOperations.length)];
-            }
-        }
-        if (Math.random() > 0.5) [n1, n2] = [n2, n1];
-        return [n1, n2];
-    }
+    // ─── Helpers ───────────────────────────────────────────────────────────────
 
     function setFeedback(el, isCorrect) {
         el.className   = `feedback-inline ${isCorrect ? 'correct' : 'wrong'}`;
