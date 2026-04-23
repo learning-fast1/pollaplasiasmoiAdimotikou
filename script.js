@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (answerValue.length >= 3) return;
             answerValue += val;
         }
-        answerEl.textContent = answerValue || '?';
+        answerEl.textContent = answerValue || ';';
     }
 
     // --- Two player logic ---
@@ -161,14 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 setFeedback(dom.feedback, false);
                 state.answer = '';
-                dom.answer.textContent = '?';
+                dom.answer.textContent = ';';
             }
             return;
         } else {
             if (state.answer.length >= 3) return;
             state.answer += val;
         }
-        dom.answer.textContent = state.answer || '?';
+        dom.answer.textContent = state.answer || ';';
     }
 
     // --- Generate question ---
@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // single player
             waiting = false;
             answerValue = '';
-            answerEl.textContent = '?';
+            answerEl.textContent = ';';
             feedbackEl.className = 'feedback-inline hidden';
             correctAnswer = result;
             questionEl.textContent = `${n1} × ${n2}`;
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
             p[player].waiting = false;
             p[player].answer = '';
             p[player].correct = result;
-            el[player].answer.textContent = '?';
+            el[player].answer.textContent = ';';
             el[player].feedback.className = 'feedback-inline hidden';
             el[player].question.textContent = `${n1} × ${n2}`;
         }
