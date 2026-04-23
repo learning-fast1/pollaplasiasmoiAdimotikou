@@ -1,14 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- State ---
-    let currentMode = null;
-    let playerCount = 1;
+    let currentMode  = null;
+    let playerCount  = 1;
+    let selectedTime = 60;
+    let timeLeft     = 60;
+    let timerInterval = null;
 
     // Single player
-    let score = 0;
+    let score         = 0;
     let correctAnswer = null;
-    let answerValue = '';
-    let waiting = false;
+    let answerValue   = '';
+    let waiting       = false;
 
     // Two player
     const p = {
@@ -23,21 +26,22 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // --- DOM ---
-    const app            = document.getElementById('app');
-    const menuScreen     = document.getElementById('menu-screen');
-    const gameScreen     = document.getElementById('game-screen');
-    const twoScreen      = document.getElementById('two-player-screen');
+    const app        = document.getElementById('app');
+    const menuScreen = document.getElementById('menu-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const twoScreen  = document.getElementById('two-player-screen');
+    const gameOver   = document.getElementById('game-over');
 
-    const btn1p          = document.getElementById('btn-1p');
-    const btn2p          = document.getElementById('btn-2p');
+    const btn1p  = document.getElementById('btn-1p');
+    const btn2p  = document.getElementById('btn-2p');
 
-    // Single player elements
-    const scoreEl        = document.getElementById('score');
-    const questionEl     = document.getElementById('question');
-    const answerEl       = document.getElementById('answer-display');
-    const feedbackEl     = document.getElementById('feedback-inline');
+    const scoreEl    = document.getElementById('score');
+    const questionEl = document.getElementById('question');
+    const answerEl   = document.getElementById('answer-display');
+    const feedbackEl = document.getElementById('feedback-inline');
+    const timerEl    = document.getElementById('timer-display');
+    const timerEl2p  = document.getElementById('timer-display-2p');
 
-    // Two player elements
     const el = {
         1: {
             score:    document.getElementById('score-p1'),
@@ -65,12 +69,29 @@ document.addEventListener('DOMContentLoaded', () => {
         btn1p.classList.remove('selected');
     });
 
+    // --- Time selection ---
+    document.querySelectorAll('.time-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedTime = parseInt(btn.dataset.time);
+        });
+    });
+
     // --- Difficulty buttons ---
     document.querySelector('.mode-012').addEventListener('click', () => startGame('012'));
     document.querySelector('.mode-345').addEventListener('click', () => startGame('345'));
     document.querySelector('.mode-all').addEventListener('click', () => startGame('all'));
     document.getElementById('back-btn').addEventListener('click', showMenu);
     document.getElementById('back-btn-2p').addEventListener('click', showMenu);
+    document.getElementById('play-again-btn').addEventListener('click', () => {
+        gameOver.classList.add('hidden');
+        startGame(currentMode);
+    });
+    document.getElementById('go-menu-btn').addEventListener('click', () => {
+        gameOver.classList.add('hidden');
+        showMenu();
+    });
 
     // --- Single player numpad ---
     document.querySelectorAll('#game-screen .numpad-btn').forEach(btn => {
@@ -95,15 +116,18 @@ document.addEventListener('DOMContentLoaded', () => {
             twoScreen.classList.add('active');
             newQuestion(1);
             newQuestion(2);
+            startTimer(timerEl2p);
         } else {
             score = 0;
             scoreEl.textContent = '0';
             gameScreen.classList.add('active');
             newQuestion(0);
+            startTimer(timerEl);
         }
     }
 
     function showMenu() {
+        stopTimer();
         gameScreen.classList.remove('active');
         twoScreen.classList.remove('active');
         menuScreen.classList.add('active');
@@ -113,6 +137,68 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackEl.className = 'feedback-inline hidden';
     }
 
+    // --- Timer ---
+    function startTimer(display) {
+        stopTimer();
+        timeLeft = selectedTime;
+        updateTimerDisplay(display);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay(display);
+            if (timeLeft <= 0) {
+                stopTimer();
+                showGameOver();
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        timerEl.classList.remove('warning');
+        timerEl2p.classList.remove('warning');
+    }
+
+    function updateTimerDisplay(display) {
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        display.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        if (timeLeft <= 10) {
+            display.classList.add('warning');
+        } else {
+            display.classList.remove('warning');
+        }
+    }
+
+    // --- Game Over ---
+    function showGameOver() {
+        const scoresDiv = document.getElementById('game-over-scores');
+
+        if (playerCount === 2) {
+            const s1 = p[1].score;
+            const s2 = p[2].score;
+            let winnerHTML = '';
+            if (s1 > s2) {
+                winnerHTML = `<div class="winner">🏆 Νικητής: Παίκτης 1!</div>`;
+            } else if (s2 > s1) {
+                winnerHTML = `<div class="winner">🏆 Νικητής: Παίκτης 2!</div>`;
+            } else {
+                winnerHTML = `<div class="winner">🤝 Ισοπαλία!</div>`;
+            }
+            scoresDiv.innerHTML = `
+                ${winnerHTML}
+                <div>🔵 Παίκτης 1: <strong>${s1}</strong> πόντοι</div>
+                <div>🔴 Παίκτης 2: <strong>${s2}</strong> πόντοι</div>
+            `;
+        } else {
+            scoresDiv.innerHTML = `<div>Σκορ: <strong>${score}</strong> πόντοι ⭐</div>`;
+        }
+
+        gameOver.classList.remove('hidden');
+    }
+
     // --- Single player logic ---
     function handleSingle(val) {
         if (waiting) return;
@@ -120,8 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             answerValue = answerValue.slice(0, -1);
         } else if (val === 'ok') {
             if (!answerValue) return;
-            const userAns = parseInt(answerValue);
-            if (userAns === correctAnswer) {
+            if (parseInt(answerValue) === correctAnswer) {
                 score += 10;
                 scoreEl.textContent = score;
                 scoreEl.style.animation = 'none';
@@ -151,8 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.answer = state.answer.slice(0, -1);
         } else if (val === 'ok') {
             if (!state.answer) return;
-            const userAns = parseInt(state.answer);
-            if (userAns === state.correct) {
+            if (parseInt(state.answer) === state.correct) {
                 state.score += 10;
                 dom.score.textContent = state.score;
                 setFeedback(dom.feedback, true);
@@ -174,22 +258,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Generate question ---
     function newQuestion(player) {
         const [n1, n2] = getNumbers();
-        const result = n1 * n2;
+        const result   = n1 * n2;
 
         if (player === 0) {
-            // single player
-            waiting = false;
-            answerValue = '';
-            answerEl.textContent = ';';
-            feedbackEl.className = 'feedback-inline hidden';
+            waiting       = false;
+            answerValue   = '';
             correctAnswer = result;
-            questionEl.textContent = `${n1} × ${n2}`;
+            answerEl.textContent        = ';';
+            feedbackEl.className        = 'feedback-inline hidden';
+            questionEl.textContent      = `${n1} × ${n2}`;
         } else {
             p[player].waiting = false;
-            p[player].answer = '';
+            p[player].answer  = '';
             p[player].correct = result;
-            el[player].answer.textContent = ';';
-            el[player].feedback.className = 'feedback-inline hidden';
+            el[player].answer.textContent   = ';';
+            el[player].feedback.className   = 'feedback-inline hidden';
             el[player].question.textContent = `${n1} × ${n2}`;
         }
     }
@@ -201,15 +284,13 @@ document.addEventListener('DOMContentLoaded', () => {
             n1 = Math.floor(Math.random() * 3);
             n2 = Math.floor(Math.random() * 11);
         } else if (currentMode === '345') {
-            const op = specificOperations[Math.floor(Math.random() * specificOperations.length)];
-            [n1, n2] = op;
+            [n1, n2] = specificOperations[Math.floor(Math.random() * specificOperations.length)];
         } else {
             if (Math.random() > 0.5) {
                 n1 = Math.floor(Math.random() * 3);
                 n2 = Math.floor(Math.random() * 11);
             } else {
-                const op = specificOperations[Math.floor(Math.random() * specificOperations.length)];
-                [n1, n2] = op;
+                [n1, n2] = specificOperations[Math.floor(Math.random() * specificOperations.length)];
             }
         }
         if (Math.random() > 0.5) [n1, n2] = [n2, n1];
@@ -217,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setFeedback(el, isCorrect) {
-        el.className = `feedback-inline ${isCorrect ? 'correct' : 'wrong'}`;
+        el.className   = `feedback-inline ${isCorrect ? 'correct' : 'wrong'}`;
         el.textContent = isCorrect ? '✓ Σωστό!' : '✗ Λάθος! Προσπάθησε πάλι.';
     }
 });

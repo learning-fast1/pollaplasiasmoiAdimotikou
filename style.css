@@ -177,6 +177,147 @@ body {
     margin-top: 10px;
 }
 
+/* Time selection */
+.time-selection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.selection-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.time-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.time-btn {
+    padding: 8px 14px;
+    font-size: 1rem;
+    background: white;
+    color: var(--text-color);
+    border: 3px solid #dfe6e9;
+    box-shadow: 0 4px 0 #dfe6e9;
+    border-radius: 14px;
+    min-width: 50px;
+}
+
+.time-btn.selected {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 0 #c0392b;
+}
+
+.time-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Timer display */
+.timer-display {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-color);
+    background: white;
+    border: 3px solid var(--secondary-color);
+    border-radius: 15px;
+    padding: 8px 18px;
+    min-width: 85px;
+    text-align: center;
+    box-shadow: 0 5px 0 rgba(0,0,0,0.1);
+}
+
+.timer-display.warning {
+    border-color: var(--wrong-color);
+    color: var(--wrong-color);
+    animation: timerPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.08); }
+}
+
+.two-player-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 8px;
+}
+
+/* Game Over Overlay */
+.game-over-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.game-over-overlay.hidden {
+    display: none;
+}
+
+.game-over-box {
+    background: white;
+    border-radius: 30px;
+    padding: 40px 50px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    border: 5px solid var(--accent-color);
+    max-width: 520px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.game-over-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.game-over-scores {
+    font-size: 1.6rem;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game-over-scores .winner {
+    font-size: 1.9rem;
+    color: var(--correct-color);
+}
+
+.game-over-scores .loser {
+    color: #aaa;
+}
+
+.game-over-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.game-over-buttons .menu-btn {
+    width: auto;
+    padding: 14px 24px;
+    font-size: 1.3rem;
+}
+
 /* Player count selection */
 .player-selection {
     display: flex;
@@ -220,10 +361,6 @@ body {
     min-height: 100vh;
 }
 
-.two-player-back {
-    text-align: center;
-    margin-bottom: 8px;
-}
 
 .two-player-area {
     display: flex;
