@@ -51,19 +51,27 @@
 
             <div class="game-area">
                 <div class="question-container">
-                    <div id="question">2 x 3</div>
+                    <div id="question">2 × 3</div>
                     <div class="equals">=</div>
-                    <div class="question-mark">?</div>
+                    <div id="answer-display" class="answer-display">?</div>
                 </div>
 
-                <div id="options-container" class="options-grid">
-                    <!-- Option buttons will be generated here by JS -->
+                <div id="feedback-inline" class="feedback-inline hidden"></div>
+
+                <div class="numpad">
+                    <button class="numpad-btn" data-val="7">7</button>
+                    <button class="numpad-btn" data-val="8">8</button>
+                    <button class="numpad-btn" data-val="9">9</button>
+                    <button class="numpad-btn" data-val="4">4</button>
+                    <button class="numpad-btn" data-val="5">5</button>
+                    <button class="numpad-btn" data-val="6">6</button>
+                    <button class="numpad-btn" data-val="1">1</button>
+                    <button class="numpad-btn" data-val="2">2</button>
+                    <button class="numpad-btn" data-val="3">3</button>
+                    <button class="numpad-btn numpad-del" data-val="del">⌫</button>
+                    <button class="numpad-btn" data-val="0">0</button>
+                    <button class="numpad-btn numpad-ok" data-val="ok">✓</button>
                 </div>
-            </div>
-            
-            <div id="feedback-area" class="feedback-area hidden">
-                <div id="feedback-icon" class="feedback-icon"></div>
-                <div id="feedback-text" class="feedback-text"></div>
             </div>
         </div>
     </div>
