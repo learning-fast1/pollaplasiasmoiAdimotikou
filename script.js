@@ -171,6 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initPools(mode);
         menuScreen.classList.remove('active');
 
+        gtag('event', 'page_view', {
+            page_title:    'Παιχνίδι - ' + mode,
+            page_location: window.location.href + '#game'
+        });
         gtag('event', 'game_start', {
             mode:    mode,
             players: playerCount,
@@ -225,6 +229,10 @@ document.addEventListener('DOMContentLoaded', () => {
         waiting      = false;
         isReviewMode = false;
         feedbackEl.className = 'feedback-inline hidden';
+        gtag('event', 'page_view', {
+            page_title:    'Μενού',
+            page_location: window.location.href + '#menu'
+        });
     }
 
     // ─── Timer ─────────────────────────────────────────────────────────────────
