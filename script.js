@@ -171,6 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initPools(mode);
         menuScreen.classList.remove('active');
 
+        gtag('event', 'game_start', {
+            mode:    mode,
+            players: playerCount,
+            time:    selectedTime
+        });
+
         if (playerCount === 2) {
             p[1].score = 0; p[2].score = 0;
             el[1].score.textContent = '0';
@@ -190,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startReview() {
+        gtag('event', 'review_start', { wrong_count: wrongMap.size });
         const reviewPairs = shuffle(Array.from(wrongMap.values()));
         wrongMap.clear();
 
@@ -275,6 +282,24 @@ document.addEventListener('DOMContentLoaded', () => {
             reviewBtn.textContent   = `📝 Επανάληψη Λαθών (${wrongMap.size})`;
         } else {
             reviewBtn.style.display = 'none';
+        }
+
+        if (playerCount === 2 && !isReviewMode) {
+            gtag('event', 'game_end', {
+                score_p1:    p[1].score,
+                score_p2:    p[2].score,
+                wrong_count: wrongMap.size,
+                mode:        currentMode,
+                time:        selectedTime
+            });
+        } else {
+            gtag('event', 'game_end', {
+                score:       score,
+                wrong_count: wrongMap.size,
+                mode:        currentMode,
+                time:        selectedTime,
+                review:      isReviewMode
+            });
         }
 
         gameOver.classList.remove('hidden');
