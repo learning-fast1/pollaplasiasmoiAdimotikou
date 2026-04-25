@@ -143,7 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function nextFromPool(key) {
         const pool = pools[key];
-        if (pool.idx >= pool.list.length) { shuffle(pool.list); pool.idx = 0; }
+        if (pool.idx >= pool.list.length) {
+            if (isReviewMode) return null;
+            shuffle(pool.list);
+            pool.idx = 0;
+        }
         const [a, b] = pool.list[pool.idx++];
         return Math.random() > 0.5 ? [a, b] : [b, a];
     }
@@ -181,6 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
             time:    selectedTime
         });
 
+        timerEl.style.visibility = '';
+
         if (playerCount === 2) {
             p[1].score = 0; p[2].score = 0;
             el[1].score.textContent = '0';
@@ -215,8 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
         app.classList.remove('two-player-mode');
         gameScreen.classList.add('active');
 
+        // Κρύβουμε τον χρόνο στην επανάληψη
+        timerEl.style.visibility = 'hidden';
+        stopTimer();
+
         newQuestion(0);
-        startTimer(timerEl);
     }
 
     function showMenu() {
@@ -228,7 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMode  = null;
         waiting      = false;
         isReviewMode = false;
-        feedbackEl.className = 'feedback-inline hidden';
+        feedbackEl.className     = 'feedback-inline hidden';
+        timerEl.style.visibility = '';
         gtag('event', 'page_view', {
             page_title:    'Μενού',
             page_location: window.location.href + '#menu'
@@ -263,12 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Game over ─────────────────────────────────────────────────────────────
 
-    function showGameOver() {
+    function showGameOver(reviewCompleted = false) {
         const scoresDiv = document.getElementById('game-over-scores');
 
-        gameOverTitle.textContent = isReviewMode
-            ? '📝 Τέλος Επανάληψης!'
-            : '⏰ Τελείωσε ο χρόνος!';
+        if (reviewCompleted) {
+            gameOverTitle.textContent = '🎉 Μπράβο! Τα έλυσες όλα!';
+        } else {
+            gameOverTitle.textContent = '⏰ Τελείωσε ο χρόνος!';
+        }
 
         if (playerCount === 2 && !isReviewMode) {
             const s1 = p[1].score, s2 = p[2].score;
@@ -376,7 +388,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── Generate question ─────────────────────────────────────────────────────
 
     function newQuestion(player) {
-        const [n1, n2] = nextFromPool(player);
+        const pair = nextFromPool(player);
+        if (!pair) { showGameOver(true); return; } // επανάληψη ολοκληρώθηκε
+        const [n1, n2] = pair;
         const result   = n1 * n2;
 
         if (player === 0) {
